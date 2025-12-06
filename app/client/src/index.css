@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --primary-color: #10B981;
+  /* Emerald Green */
+  --secondary-color: #34D399;
+  /* Mint Green */
+  --bg-color: #F0FDF4;
+  /* Very light green/white tint */
+  --card-bg: #FFFFFF;
+  --text-color: #064E3B;
+  /* Dark Green/Black text */
+  --text-muted: #374151;
+  --accent-gradient: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  --font-main: 'Outfit', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-main);
+  line-height: 1.6;
+  font-weight: 400;
+  overflow-x: hidden;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-color);
+}
+
+button {
+  background: var(--text-color);
+  color: #fff;
+  border: none;
+  padding: 0.8em 1.6em;
+  font-size: 1em;
+  font-weight: 600;
+  font-family: var(--font-main);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 50px;
+  /* Pill shape */
+}
+
+button:hover {
+  background: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(123, 97, 255, 0.3);
+}
+
+/* Leaflet Custom Marker Override */
+.custom-marker {
+  background: transparent;
+  border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.custom-marker svg {
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3));
+  /* Nice shadow for the pin */
+  transition: transform 0.2s ease;
+}
+
+.custom-marker:hover svg {
+  transform: scale(1.1);
+}
