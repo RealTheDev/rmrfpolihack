@@ -1,6 +1,9 @@
-import React from 'react';
-import MapComponent from '../../components/Map/MapComponent';
+import React, { Suspense } from 'react';
+// import MapComponent from '../../components/Map/MapComponent'; // Removed static import
 import './LandingPage.css';
+
+// Lazy load the MapComponent
+const MapComponent = React.lazy(() => import('../../components/Map/MapComponent'));
 
 const LandingPage: React.FC = () => {
     React.useEffect(() => {
@@ -75,7 +78,23 @@ const LandingPage: React.FC = () => {
 
                     <div className="map-card-wrapper">
                         <div className="map-card">
-                            <MapComponent />
+                            <Suspense fallback={
+                                <div style={{
+                                    height: '100%',
+                                    width: '100%',
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    background: '#f3f4f6',
+                                    borderRadius: '15px',
+                                    color: '#6b7280',
+                                    fontWeight: 500
+                                }}>
+                                    Loading Map...
+                                </div>
+                            }>
+                                <MapComponent />
+                            </Suspense>
                         </div>
                         <div className="map-stats-sidebar">
                             <div className="stat-box">

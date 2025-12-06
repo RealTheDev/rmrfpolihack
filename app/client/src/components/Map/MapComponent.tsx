@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { mockTrashCans } from '../../data/mockData';
 import L from 'leaflet';
+import type { Bin } from '../../types';
 
 // Custom Scalable Vector Graphics (SVG) Marker
 const createCustomIcon = (color: string) => {
@@ -26,6 +26,41 @@ const redIcon = createCustomIcon('#EF4444');   // Red
 const center: [number, number] = [46.7712, 23.6236]; // Cluj-Napoca
 
 const MapComponent: React.FC = () => {
+    const [bins, setBins] = useState<Bin[]>([]);
+
+    useEffect(() => {
+        const fetchBins = () => {
+            fetch('http://localhost:5000/api/bins')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch bins');
+                    }
+                    return response.json();
+                })
+                .then((data: any[]) => { // Use any[] temporarily or define ApiBin type
+                    console.log('Fetched bins data:', data);
+                    // Transform API data to match Bin interface
+                    // Note: API seems to have latitude/longitude swapped (Cluj is ~46N, 23E)
+                    // API returns lat~23, long~46. So we map long->lat, lat->lng.
+                    const mappedBins: Bin[] = data.map(item => ({
+                        id: item.binId,
+                        lat: item.latitude,
+                        lng: item.longitude,
+                        fillLevel: item.fillLevel
+                    }));
+                    setBins(mappedBins);
+                })
+                .catch(error => {
+                    console.error('Error fetching bins:', error);
+                });
+        };
+
+        fetchBins();
+        // Set up polling every 30 seconds
+        const interval = setInterval(fetchBins, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <MapContainer
             center={center}
@@ -36,26 +71,24 @@ const MapComponent: React.FC = () => {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
             />
-            {mockTrashCans.map((can) => {
+            {bins.map((bin) => {
                 // Logic for marker color
-                const icon = can.fillLevel < 80 ? greenIcon : redIcon;
+                const icon = bin.fillLevel < 80 ? greenIcon : redIcon;
 
                 return (
-                    <Marker key={can.id} position={[can.lat, can.lng]} icon={icon}>
+                    <Marker key={bin.id} position={[bin.lat, bin.lng]} icon={icon}>
                         <Popup>
                             <div style={{ color: '#333', textAlign: 'center' }}>
-                                <strong style={{ fontSize: '1.1em' }}>{can.locationName}</strong><br />
                                 <div style={{
                                     marginTop: '5px',
                                     padding: '4px 8px',
                                     borderRadius: '4px',
-                                    background: can.fillLevel < 80 ? '#ECFDF5' : '#FEF2F2',
-                                    color: can.fillLevel < 80 ? '#047857' : '#B91C1C',
+                                    background: bin.fillLevel < 80 ? '#ECFDF5' : '#FEF2F2',
+                                    color: bin.fillLevel < 80 ? '#047857' : '#B91C1C',
                                     fontWeight: 'bold'
                                 }}>
-                                    Fill Level: {can.fillLevel}%
+                                    Fill Level: {bin.fillLevel}%
                                 </div>
-                                <span style={{ fontSize: '0.9em', color: '#666' }}>Status: {can.status}</span>
                             </div>
                         </Popup>
                     </Marker>
