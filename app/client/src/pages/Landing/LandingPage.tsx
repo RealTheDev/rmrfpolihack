@@ -13,7 +13,9 @@ const LandingPage: React.FC = () => {
     return (
         <div className="landing-page">
             <header className="navbar">
-                <div className="logo">SmartCan</div>
+                <div className="logo">
+                    SmartCan
+                </div>
                 <div className="nav-actions">
                     <button className="download-btn" onClick={() => document.getElementById('map')?.scrollIntoView({ behavior: 'smooth' })}>
                         View Map
