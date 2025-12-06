@@ -31,18 +31,15 @@ const MapComponent: React.FC = () => {
 
     useEffect(() => {
         const fetchBins = () => {
-            fetch('http://localhost:5000/api/bins')
+            fetch('https://rmrfpolihack.onrender.com/api/bins')
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Failed to fetch bins');
                     }
                     return response.json();
                 })
-                .then((data: any[]) => { // Use any[] temporarily or define ApiBin type
+                .then((data: any[]) => {
                     console.log('Fetched bins data:', data);
-                    // Transform API data to match Bin interface
-                    // Note: API seems to have latitude/longitude swapped (Cluj is ~46N, 23E)
-                    // API returns lat~23, long~46. So we map long->lat, lat->lng.
                     const mappedBins: Bin[] = data.map(item => ({
                         id: item.binId,
                         lat: item.latitude,
