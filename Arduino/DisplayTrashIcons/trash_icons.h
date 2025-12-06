@@ -1,0 +1,9 @@
+const uint32_t Trash_can_0[3] = {0x2003ffe0, 0x1a01a01e, 0x13ff200};
+const uint32_t Trash_can_12_5[3] = {0x2003ffe0, 0x3a03a03e, 0x33ff200};
+const uint32_t Trash_can_25[3] = {0x2003ffe0, 0x7a07a07e, 0x73ff200};
+const uint32_t Trash_can_37_5[3] = {0x2003ffe0, 0xfa0fa0fe, 0xf3ff200};
+const uint32_t Trash_can_50[3] = {0x2003ffe1, 0xfa1fa1fe, 0x1f3ff200};
+const uint32_t Trash_can_62_5[3] = {0x2003ffe3, 0xfa3fa3fe, 0x3f3ff200};
+const uint32_t Trash_can_75[3] = {0x2003ffe7, 0xfa7fa7fe, 0x7f3ff200};
+const uint32_t Trash_can_87_5[3] = {0x2003ffef, 0xfaffaffe, 0xff3ff200};
+const uint32_t Trash_can_100[3] = {0x2003ffff, 0xfbffbfff, 0xff3ff200};
