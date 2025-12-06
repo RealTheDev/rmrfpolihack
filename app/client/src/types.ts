@@ -3,4 +3,5 @@ export interface Bin {
     lat: number;
     lng: number;
     fillLevel: number;
+    lastUpdated: string;
 }

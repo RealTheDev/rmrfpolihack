@@ -21,6 +21,7 @@ const createCustomIcon = (color: string) => {
 };
 
 const greenIcon = createCustomIcon('#10B981'); // Emerald Green
+const yellowIcon = createCustomIcon('#FBBF24'); // Amber/Yellow
 const redIcon = createCustomIcon('#EF4444');   // Red
 
 const center: [number, number] = [46.7712, 23.6236]; // Cluj-Napoca
@@ -46,7 +47,8 @@ const MapComponent: React.FC = () => {
                         id: item.binId,
                         lat: item.latitude,
                         lng: item.longitude,
-                        fillLevel: item.fillLevel
+                        fillLevel: item.fillLevel,
+                        lastUpdated: item.lastUpdated
                     }));
                     setBins(mappedBins);
                 })
@@ -73,7 +75,25 @@ const MapComponent: React.FC = () => {
             />
             {bins.map((bin) => {
                 // Logic for marker color
-                const icon = bin.fillLevel < 80 ? greenIcon : redIcon;
+                // Red: Last updated more than 1 hour ago
+                // Yellow: Fill level > 80% (and recently updated)
+                // Green: Otherwise
+                let icon = greenIcon;
+                let statusColor = '#047857'; // Green text
+                let statusBg = '#ECFDF5';   // Green bg
+
+                const lastUpdatedDate = new Date(bin.lastUpdated);
+                const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+                if (lastUpdatedDate < oneHourAgo) {
+                    icon = redIcon;
+                    statusColor = '#B91C1C';
+                    statusBg = '#FEF2F2';
+                } else if (bin.fillLevel > 80) {
+                    icon = yellowIcon;
+                    statusColor = '#B45309'; // Amber text
+                    statusBg = '#FFFBEB';   // Amber bg
+                }
 
                 return (
                     <Marker key={bin.id} position={[bin.lat, bin.lng]} icon={icon}>
@@ -83,8 +103,8 @@ const MapComponent: React.FC = () => {
                                     marginTop: '5px',
                                     padding: '4px 8px',
                                     borderRadius: '4px',
-                                    background: bin.fillLevel < 80 ? '#ECFDF5' : '#FEF2F2',
-                                    color: bin.fillLevel < 80 ? '#047857' : '#B91C1C',
+                                    background: statusBg,
+                                    color: statusColor,
                                     fontWeight: 'bold'
                                 }}>
                                     Fill Level: {bin.fillLevel}%
