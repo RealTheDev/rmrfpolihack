@@ -1,75 +1,76 @@
 #include "Arduino_LED_Matrix.h"
 #include "trash_icons.h" 
 #include "WiFiS3.h"
+#include <Adafruit_NeoPixel.h>
+#include <Servo.h>
 
-#define TRIG_PIN 10
-#define ECHO_PIN 9
+#define TRIG_PIN 3
+#define ECHO_PIN 4
+#define TRIG_PIN2 5
+#define ECHO_PIN2 7
+
+#define SERVO_1 10
+#define SERVO_2 11
+
+#define PIN_NEO_PIXEL  6   // Arduino pin that connects to NeoPixel
+#define NUM_PIXELS     26  // The number of LEDs (pixels) on NeoPixel
+
+Adafruit_NeoPixel NeoPixel(NUM_PIXELS, PIN_NEO_PIXEL, NEO_GRB + NEO_KHZ800);
+
+Servo myservo;
+Servo myservo2;unsigned long lastSensorTime = 0;   // Tracks the last time we read sensors
+const long sensorInterval = 10000;  // 10 seconds in milliseconds
+
 
 // Settings for the filtering algorithm
 const int SAMPLE_SIZE = 20;
 const int IGNORE_LOW = 5;
 const int IGNORE_HIGH = 5;
 
-
 ArduinoLEDMatrix matrix;
+
+// Sensors timer for void loop
+unsigned long lastSensorTimeSensors = 0;   // Tracks the last time we read sensors
+const long sensorIntervalSensors = 10000;  // 10 seconds in milliseconds
+
+// Array to store data samples. 
+float filterArray[SAMPLE_SIZE];
+
+float correctDistance;
+
+// --- WIFI SETTINGS ---
+char ssid[] = "HUAWEI P30 Pro";       // Your Network Name
+char pass[] = "cdd82acc";           // Your Network Password
+
+int status = WL_IDLE_STATUS;
+char serverAddress[] = "rmrfpolihack.onrender.com";    
+WiFiServer server(80); // Open Port 80 for Python commands
+WiFiSSLClient client;  // For cloud upload
+
+// --- TIMERS ---
+unsigned long lastCloudUpload = 0;
+const long CLOUD_INTERVAL = 5000; // Upload to cloud every 5 seconds (prevents lag)
+
 // ---------------------------------------------------------------------------
 // START ULTRASONIC FUNCTIONS
 // ---------------------------------------------------------------------------
-
-
-// Array to store data samples. 
-// Note: We pass this array into functions rather than relying on a global variable where possible, 
-// but keeping it global here prevents stack overflow if the array gets very large.
-float filterArray[SAMPLE_SIZE];
-
-// 1. Setup Function: Handles pin configurations
 void setupSensor() {
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
+  pinMode(TRIG_PIN2, OUTPUT);
+  pinMode(ECHO_PIN2, INPUT);
 }
 
-// 2. Main Measurement Logic: Handles sampling, sorting, and averaging
-float getFilteredDistance() {
-  
-  // Step A: Take samples
-  for (int sample = 0; sample < SAMPLE_SIZE; sample++) {
-    filterArray[sample] = performSingleMeasurement();
-    delay(30); // delay to avoid echo interference
-  }
-
-  // Step B: Sort array (Bubble Sort)
-  sortArray(filterArray, SAMPLE_SIZE);
-
-  // Step C: Calculate average of the middle samples
-  // We start at IGNORE_LOW (index 5) and stop before SAMPLE_SIZE - IGNORE_HIGH (index 15)
-  double sum = 0;
-  int count = 0;
-  
-  for (int sample = IGNORE_LOW; sample < (SAMPLE_SIZE - IGNORE_HIGH); sample++) {
-    sum += filterArray[sample];
-    count++;
-  }
-
-  return sum / count;
-}
-
-// 3. Helper: Performs a single ping (Hardware interaction)
-float performSingleMeasurement() {
-  digitalWrite(TRIG_PIN, LOW); // Ensure clean low before high
+float performSingleMeasurement(int trig, int echo) {
+  digitalWrite(trig, LOW);
   delayMicroseconds(2);
-  
-  digitalWrite(TRIG_PIN, HIGH);
+  digitalWrite(trig, HIGH);
   delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
-
-  float duration_us = pulseIn(ECHO_PIN, HIGH);
-  
-  // Calculate distance: (duration / 2) * speed_of_sound (0.0343 cm/us)
-  // or simply duration * 0.017
+  digitalWrite(trig, LOW);
+  float duration_us = pulseIn(echo, HIGH);
   return 0.017 * duration_us;
 }
 
-// 4. Helper: Sorts an array (Logic utility)
 void sortArray(float *arr, int size) {
   for (int i = 0; i < size - 1; i++) {
     for (int j = i + 1; j < size; j++) {
@@ -82,7 +83,21 @@ void sortArray(float *arr, int size) {
   }
 }
 
-// 5. Output: Handles Serial printing
+float getFilteredDistance(int trig, int echo) {
+  for (int sample = 0; sample < SAMPLE_SIZE; sample++) {
+    filterArray[sample] = performSingleMeasurement(trig, echo);
+    delay(5); // Reduced delay to make loop faster
+  }
+  sortArray(filterArray, SAMPLE_SIZE);
+  double sum = 0;
+  int count = 0;
+  for (int sample = IGNORE_LOW; sample < (SAMPLE_SIZE - IGNORE_HIGH); sample++) {
+    sum += filterArray[sample];
+    count++;
+  }
+  return sum / count;
+}
+
 void printDistance(float dist) {
   Serial.print("Distance: ");
   Serial.print(dist);
@@ -90,31 +105,7 @@ void printDistance(float dist) {
 }
 
 // ---------------------------------------------------------------------------
-// END ULTRASONIC FUNCTIONS
-// ---------------------------------------------------------------------------
-
-
-
-// ---------------------------------------------------------------------------
-// ENTER YOUR WIFI CREDENTIALS HERE
-// ---------------------------------------------------------------------------
-char ssid[] = "cloudflight-guest";        // your network SSID (name)
-char pass[] = "digitalfuture";    // your network password (use for WPA, or use as key for WEP)
-
-
-// ---------------------------------------------------------------------------
-// SETTINGS
-// ---------------------------------------------------------------------------
-int status = WL_IDLE_STATUS;
-char serverAddress[] = "rmrfpolihack.onrender.com";    // The database link
-
-
-// Use SSL Client for HTTPS
-WiFiSSLClient client;
-
-
-// ---------------------------------------------------------------------------
-// HELPER: Print WiFi details
+// CLOUD FUNCTIONS
 // ---------------------------------------------------------------------------
 void printWifiStatus() {
   Serial.print("SSID: ");
@@ -124,173 +115,237 @@ void printWifiStatus() {
   Serial.println(ip);
 }
 
-
-// ---------------------------------------------------------------------------
-// FUNCTION: PUT Request with JSON Data
-// ---------------------------------------------------------------------------
 void sendFillLevel(int level) {
-  
-  // 1. Create the JSON string dynamically
-  // We use String object here for easier concatenation of the variable
-  String jsonBody = "{\"binId\": \"BIN_02\", \"fillLevel\": " + String(level) + "}";
-  
-  Serial.println("\nConnecting to server...");
+  String jsonBody = "{\"binId\": \"BIN_01\", \"fillLevel\": " + String(level) + "}";
+  Serial.println("\n[Cloud] Connecting to server...");
+  Serial.print("Level: "); 
+  Serial.println(level);
 
-  // 2. Connect to Port 443 (HTTPS)
   if (client.connect(serverAddress, 443)) {
-    Serial.println("Connected. Sending PUT request...");
-
-    // 3. Send HTTP Headers
+    Serial.println("[Cloud] Connected. Sending PUT...");
     client.println("PUT /api/bins HTTP/1.1");
     client.print("Host: "); 
     client.println(serverAddress);
     client.println("Content-Type: application/json");
-    
-    // Calculate and send the length of the JSON payload
     client.print("Content-Length: ");
     client.println(jsonBody.length());
-    
-    // Close connection after response
     client.println("Connection: close"); 
-    
-    // Empty line to separate headers from body
     client.println(); 
-    
-    // 4. Send the JSON Body
     client.println(jsonBody);
-
+    
+    // 2. WAIT for the server to process it (The missing piece)
+    int timeout = 0;
+    while (!client.available() && timeout < 5000) {
+      delay(10);
+      timeout += 10;
+    }
   } else {
-    Serial.println("Connection failed!");
+    Serial.println("[Cloud] Connection failed!");
     return;
   }
-
-  // 5. Read the Server's Response (Optional but good for debugging)
-  // This waits for the server to reply and prints it to Serial
-  while (client.connected() || client.available()) {
-    if (client.available()) {
-      char c = client.read();
-      Serial.write(c);
-    }
-  }
-
-  // 6. Close the client
   client.stop();
-  Serial.println("\nRequest complete.");
+  Serial.println("[Cloud] Request complete.");
 }
 
-
-
 // ---------------------------------------------------------------------------
-// HELPER: 
+// DISPLAY LOGIC
 // ---------------------------------------------------------------------------
-
 void display_trash_percent(float distance_cm) {
-  
-  // 1. Logic for 100% (Full)
-  // If trash is within 4cm of the sensor (or closer)
-  if (distance_cm <= 4.0) {
-    sendFillLevel(100);
-    matrix.loadFrame(Trash_can_100);
-    Serial.print("Displaying: 100% | Dist: ");
-    Serial.println(distance_cm);
-    
-  } else if (distance_cm <= 8.75) {
-    // If trash is between 4cm and 8.75cm
-    sendFillLevel(87.5);
-    matrix.loadFrame(Trash_can_87_5);
-    Serial.print("Displaying: 87.5% | Dist: ");
-    Serial.println(distance_cm);
-    
-  } else if (distance_cm <= 17.5) {
-    sendFillLevel(75);
-    matrix.loadFrame(Trash_can_75);
-    Serial.print("Displaying: 75% | Dist: ");
-    Serial.println(distance_cm);
-    
-  } else if (distance_cm <= 26.25) { 
-    sendFillLevel(62.5);
-    matrix.loadFrame(Trash_can_62_5); 
-    Serial.print("Displaying: 62.5% | Dist: ");
-    Serial.println(distance_cm);
-    
-  } else if (distance_cm <= 35.0) {
-    sendFillLevel(50);
-    matrix.loadFrame(Trash_can_50);
-    Serial.print("Displaying: 50% | Dist: ");
-    Serial.println(distance_cm);
-    
-  } else if (distance_cm <= 43.75) {
-    sendFillLevel(37.5);
-    matrix.loadFrame(Trash_can_37_5); 
-    Serial.print("Displaying: 37.5% | Dist: ");
-    Serial.println(distance_cm);
-    
-  } else if (distance_cm <= 52.5) {
-    sendFillLevel(25);
-    matrix.loadFrame(Trash_can_25);
-    Serial.print("Displaying: 25% | Dist: ");
-    Serial.println(distance_cm);
-    
-  } else if (distance_cm <= 61.25) {
-    sendFillLevel(12.5);
-    matrix.loadFrame(Trash_can_12_5);
-    Serial.print("Displaying: 12.5% | Dist: ");
-    Serial.println(distance_cm);
-  
-  } else if (distance_cm <= 75) {
-    sendFillLevel(0);
-    matrix.loadFrame(Trash_can_0);
-    Serial.print("Displaying: 0% | Dist: ");
-    Serial.println(distance_cm);
-  
-  } else {
-    // The bin has 75 cm depth. The sensor might show values above 100 when is to close to the sensor. (below 2 cm)
-    sendFillLevel(100);
-    matrix.loadFrame(Trash_can_100);
-    Serial.print("(FALSE DISTANCE) Displaying: 100% | Dist: ");
-    Serial.println(distance_cm);
+  int fillPercent = 0;
+
+  if (distance_cm <= 8.75) { fillPercent = 87; matrix.loadFrame(Trash_can_87_5); }
+  else if (distance_cm <= 17.5) { fillPercent = 75; matrix.loadFrame(Trash_can_75); }
+  else if (distance_cm <= 26.25) { fillPercent = 62; matrix.loadFrame(Trash_can_62_5); }
+  else if (distance_cm <= 35.0) { fillPercent = 50; matrix.loadFrame(Trash_can_50); }
+  else if (distance_cm <= 43.75) { fillPercent = 37; matrix.loadFrame(Trash_can_37_5); }
+  else if (distance_cm <= 52.5) { fillPercent = 25; matrix.loadFrame(Trash_can_25); }
+  else if (distance_cm <= 61.25) { fillPercent = 12; matrix.loadFrame(Trash_can_12_5); }
+  else if (distance_cm <= 80) { fillPercent = 0; matrix.loadFrame(Trash_can_0); }
+  else{fillPercent = 100; matrix.loadFrame(Trash_can_100);}
+
+  // ONLY send to cloud if timer expires (Non-blocking logic)
+  if (millis() - lastCloudUpload > CLOUD_INTERVAL) {
+     sendFillLevel(fillPercent);
+     lastCloudUpload = millis();
   }
 }
 
+// ---------------------------------------------------------------------------
+// MOTOR LOGIC
+// ---------------------------------------------------------------------------
+void RotateMotors(char direction) { 
+  if (direction == 'r') {
+    Serial.println("Executing RECYCLABLE Routine (Right)...");
+    myservo.write(45);   myservo2.write(135);
+    for (int pixel = 0; pixel < NUM_PIXELS; pixel++) {           // for each pixel
+    NeoPixel.setPixelColor(pixel, NeoPixel.Color(50, 0, 0));  // it only takes effect if pixels.show() is called
+    NeoPixel.show();                                           // send the updated pixel colors to the NeoPixel hardware.
+    delay(500/NUM_PIXELS);  // pause between each pixel
+  }
+    myservo.write(90);   myservo2.write(90);  delay(1000); 
+    NeoPixel.clear();
+    NeoPixel.show();
+    myservo.write(135);  myservo2.write(45);  delay(320); 
+    myservo.write(90);   myservo2.write(90);  delay(100); 
+    Serial.println("Done.");
+  } else if (direction == 'l') {
+    Serial.println("Executing TRASH Routine (Left)...");
+    myservo.write(135);  myservo2.write(45);
+    for (int pixel = NUM_PIXELS-1; pixel >=0 ; pixel--) {           // for each pixel
+    NeoPixel.setPixelColor(pixel, NeoPixel.Color(0, 50, 0));  // it only takes effect if pixels.show() is called
+    NeoPixel.show();                                           // send the updated pixel colors to the NeoPixel hardware.
+    delay(500/NUM_PIXELS);  // pause between each pixel
+  }
+    myservo.write(90);   myservo2.write(90);  delay(1000);
+    NeoPixel.clear();
+    NeoPixel.show();
+    myservo.write(45);   myservo2.write(135); delay(320); 
+    myservo.write(90);   myservo2.write(90);  delay(100);
+    Serial.println("Done.");
+  }
+}
 
+// Output the correct sensor data
+float compareSensors(float sensor1, float sensor2) {
+  float correctPercent;
+
+  if (sensor1 >= 80) {
+    Serial.print("Sensor1 is ");
+    Serial.println(sensor1);
+    correctPercent = sensor1;
+  } 
+  else if (sensor2 >= 80) {
+    Serial.print("Sensor2 is ");
+    Serial.println(sensor2);
+    correctPercent = sensor2;
+  } 
+  else if (sensor1 < sensor2) {
+    Serial.print("Sensor1 is ");
+    Serial.println(sensor1);
+    correctPercent = sensor1;
+  } 
+  else {
+    Serial.print("Sensor2 is ");
+    Serial.println(sensor2);
+    correctPercent = sensor2;
+  }
+
+  return correctPercent;
+}
+
+// ---------------------------------------------------------------------------
+// MAIN SETUP
+// ---------------------------------------------------------------------------
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200); // Standard baud rate
+  
+  myservo.attach(SERVO_1);  
+  myservo.write(90);  // stop
+  myservo2.attach(SERVO_2); 
+  myservo2.write(90); // stop
+
+  NeoPixel.begin();  // INITIALIZE NeoPixel strip object
   setupSensor();
   matrix.begin();
-  while (!Serial); // Wait for Serial Monitor
 
-  // 1. Check Module
+  // WiFi Connection
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("Communication with WiFi module failed!");
     while (true);
   }
 
-  // 2. Connect to WiFi
   Serial.print("Connecting to SSID: ");
   Serial.println(ssid);
   
-  int status = WL_IDLE_STATUS;
   while (status != WL_CONNECTED) {
     status = WiFi.begin(ssid, pass);
-    delay(10000); // Wait 10 seconds for connection
+    delay(5000);
   }
+  
   Serial.println("Connected to WiFi.");
   printWifiStatus();
   
+  server.begin(); // Start listening for Python commands
+  Serial.println("Server started. Listening for commands...");
 }
 
-
+// ---------------------------------------------------------------------------
+// MAIN LOOP
+// ---------------------------------------------------------------------------
 void loop() {
-    
-    Serial.println("\n--- Enter Fill Level (0-100) in the input box above ---");
+  unsigned long currentMillis = millis();
 
-    // Seonsor
-    float currentDistance = getFilteredDistance();
-    printDistance(currentDistance);  
+  // ---------------------------------------------------------
+  // 1. Check for Python Commands (Priority 1)
+  // ---------------------------------------------------------
+  WiFiClient pythonClient = server.available();
+  
+  if (pythonClient) {
+    if (pythonClient.connected() && pythonClient.available()) {
+      char command = pythonClient.read();
+      
+      Serial.print("Received Command: ");
+      Serial.println(command);
+      
+      if (command == '1') {
+        RotateMotors('r'); // Trash
+      } 
+      else if (command == '0') {
+        RotateMotors('l'); // Recyclable
+      }
+    }
+    pythonClient.stop(); // Close connection immediately
+  }
 
-    // Update the Display
-    display_trash_percent(currentDistance);
-    
-    // Wait 10 seconds before running again so we don't flood the server
-    delay(10000);
+  // ---------------------------------------------------------
+  // 2. Check for Serial Commands (Manual Override)
+  // ---------------------------------------------------------
+  if(Serial.available() > 0){
+    char ch = Serial.read();
+    RotateMotors(ch);
+
+    // If a command was received, wait then read sensors immediately
+    if (ch) {
+      delay(3000); 
+      
+      float currentDistance = getFilteredDistance(TRIG_PIN, ECHO_PIN);
+      printDistance(currentDistance);
+      
+      float currentDistance2 = getFilteredDistance(TRIG_PIN2, ECHO_PIN2);
+      printDistance(currentDistance2);
+      
+      correctDistance = compareSensors(currentDistance, currentDistance2);
+    }
+  }
+
+  NeoPixel.clear();
+
+  // ---------------------------------------------------------
+  // 3. AUTOMATIC SENSOR TIMER (Runs every 10 seconds)
+  // ---------------------------------------------------------
+  // Note: We removed "&& !ch" because 'ch' only exists inside the block above.
+  // The delay(3000) above naturally prevents this from overlapping.
+  
+  if (currentMillis - lastSensorTimeSensors >= sensorIntervalSensors) {
+    // Save the last time we ran this code
+    lastSensorTimeSensors = currentMillis; 
+
+    Serial.println("--- 10 Second Interval: Reading Sensors ---");
+
+    // Read Sensors
+    float d1 = getFilteredDistance(TRIG_PIN, ECHO_PIN);
+    printDistance(d1);
+
+    float d2 = getFilteredDistance(TRIG_PIN2, ECHO_PIN2);
+    printDistance(d2);
+
+    // Compare and update global variable
+    correctDistance = compareSensors(d1, d2);
+  } // <--- End of Timer Block
+
+
+  // ---------------------------------------------------------
+  //  Update Display & Cloud
+  // ---------------------------------------------------------
+  display_trash_percent(correctDistance);
 }
