@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react';
+import { Link } from 'react-router-dom';
 import type { Bin } from '../../types';
 // import MapComponent from '../../components/Map/MapComponent'; // Removed static import
 import './LandingPage.css';
@@ -170,9 +171,7 @@ const LandingPage: React.FC = () => {
                         <p>Making cities smarter, one can at a time.</p>
                     </div>
                     <div className="footer-links">
-                        <a href="#">Privacy Policy</a>
-                        <a href="#">Terms of Service</a>
-                        <a href="#">Contact Support</a>
+                        <Link to="/contact">Contact Us</Link>
                     </div>
                     <div className="footer-socials">
                         <span>© 2025 SmartCan Inc.</span>
