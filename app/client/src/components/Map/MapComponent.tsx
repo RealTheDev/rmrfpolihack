@@ -21,8 +21,8 @@ const createCustomIcon = (color: string) => {
 };
 
 const greenIcon = createCustomIcon('#10B981'); // Emerald Green
-const yellowIcon = createCustomIcon('#FBBF24'); // Amber/Yellow
 const redIcon = createCustomIcon('#EF4444');   // Red
+const blackIcon = createCustomIcon('#000000'); // Black
 
 const center: [number, number] = [46.7712, 23.6236]; // Cluj-Napoca
 
@@ -72,9 +72,9 @@ const MapComponent: React.FC = () => {
             />
             {bins.map((bin) => {
                 // Logic for marker color
-                // Red: Last updated more than 1 hour ago
-                // Yellow: Fill level > 80% (and recently updated)
-                // Green: Otherwise
+                // Black: Last updated more than 1 hour ago (Not working)
+                // Red: Fill level > 80% (and working)
+                // Green: Otherwise (Working and < 80%)
                 let icon = greenIcon;
                 let statusColor = '#047857'; // Green text
                 let statusBg = '#ECFDF5';   // Green bg
@@ -83,13 +83,13 @@ const MapComponent: React.FC = () => {
                 const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
                 if (lastUpdatedDate < oneHourAgo) {
-                    icon = redIcon;
-                    statusColor = '#B91C1C';
-                    statusBg = '#FEF2F2';
+                    icon = blackIcon;
+                    statusColor = '#1F2937'; // Gray-800
+                    statusBg = '#F3F4F6';    // Gray-100
                 } else if (bin.fillLevel > 80) {
-                    icon = yellowIcon;
-                    statusColor = '#B45309'; // Amber text
-                    statusBg = '#FFFBEB';   // Amber bg
+                    icon = redIcon;
+                    statusColor = '#B91C1C'; // Red text
+                    statusBg = '#FEF2F2';    // Red bg
                 }
 
                 return (
