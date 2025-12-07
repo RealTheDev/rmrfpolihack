@@ -1,13 +1,60 @@
 import React, { Suspense } from 'react';
+import type { Bin } from '../../types';
 // import MapComponent from '../../components/Map/MapComponent'; // Removed static import
 import './LandingPage.css';
 
 // Lazy load the MapComponent
 const MapComponent = React.lazy(() => import('../../components/Map/MapComponent'));
 
+
+
 const LandingPage: React.FC = () => {
+    const [bins, setBins] = React.useState<Bin[]>([]);
+    const [activeUnits, setActiveUnits] = React.useState<number>(0);
+
     React.useEffect(() => {
         window.scrollTo(0, 0);
+
+        const fetchBins = () => {
+            fetch('https://rmrfpolihack.onrender.com/api/bins')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch bins');
+                    }
+                    return response.json();
+                })
+                .then((data: any[]) => {
+                    console.log('Fetched bins data:', data);
+                    const mappedBins: Bin[] = data.map(item => ({
+                        id: item.binId,
+                        lat: item.latitude,
+                        lng: item.longitude,
+                        fillLevel: item.fillLevel,
+                        lastUpdated: item.lastUpdated
+                    }));
+                    setBins(mappedBins);
+                    updateActiveUnits(mappedBins);
+                })
+                .catch(error => {
+                    console.error('Error fetching bins:', error);
+
+                });
+        };
+
+        const updateActiveUnits = (currentBins: Bin[]) => {
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            const activeCount = currentBins.filter(bin => {
+                const lastUpdatedDate = new Date(bin.lastUpdated);
+                return lastUpdatedDate >= oneHourAgo;
+            }).length;
+            setActiveUnits(activeCount);
+        };
+
+        fetchBins();
+        // Set up polling every 30 seconds
+        const interval = setInterval(fetchBins, 30000);
+        return () => clearInterval(interval);
+
     }, []);
 
     return (
@@ -95,12 +142,12 @@ const LandingPage: React.FC = () => {
                                     Loading Map...
                                 </div>
                             }>
-                                <MapComponent />
+                                <MapComponent bins={bins} />
                             </Suspense>
                         </div>
                         <div className="map-stats-sidebar">
                             <div className="stat-box">
-                                <span className="stat-number">5</span>
+                                <span className="stat-number">{activeUnits}</span>
                                 <span className="stat-desc">Active Units</span>
                             </div>
                             <div className="stat-box">

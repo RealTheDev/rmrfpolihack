@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -26,40 +26,11 @@ const blackIcon = createCustomIcon('#000000'); // Black
 
 const center: [number, number] = [46.7712, 23.6236]; // Cluj-Napoca
 
-const MapComponent: React.FC = () => {
-    const [bins, setBins] = useState<Bin[]>([]);
+interface MapComponentProps {
+    bins: Bin[];
+}
 
-    useEffect(() => {
-        const fetchBins = () => {
-            fetch('https://rmrfpolihack.onrender.com/api/bins')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch bins');
-                    }
-                    return response.json();
-                })
-                .then((data: any[]) => {
-                    console.log('Fetched bins data:', data);
-                    const mappedBins: Bin[] = data.map(item => ({
-                        id: item.binId,
-                        lat: item.latitude,
-                        lng: item.longitude,
-                        fillLevel: item.fillLevel,
-                        lastUpdated: item.lastUpdated
-                    }));
-                    setBins(mappedBins);
-                })
-                .catch(error => {
-                    console.error('Error fetching bins:', error);
-                });
-        };
-
-        fetchBins();
-        // Set up polling every 30 seconds
-        const interval = setInterval(fetchBins, 30000);
-        return () => clearInterval(interval);
-    }, []);
-
+const MapComponent: React.FC<MapComponentProps> = ({ bins }) => {
     return (
         <MapContainer
             center={center}
