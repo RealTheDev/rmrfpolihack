@@ -132,7 +132,7 @@ void sendFillLevel(int level) {
     client.println("Connection: close"); 
     client.println(); 
     client.println(jsonBody);
-    
+
     // 2. WAIT for the server to process it (The missing piece)
     int timeout = 0;
     while (!client.available() && timeout < 5000) {
@@ -152,8 +152,8 @@ void sendFillLevel(int level) {
 // ---------------------------------------------------------------------------
 void display_trash_percent(float distance_cm) {
   int fillPercent = 0;
-
-  if (distance_cm <= 8.75) { fillPercent = 87; matrix.loadFrame(Trash_can_87_5); }
+  if (distance_cm <= 3.75) {fillPercent = 100; matrix.loadFrame(Trash_can_100);}
+  else if (distance_cm <= 8.75) { fillPercent = 87; matrix.loadFrame(Trash_can_87_5); }
   else if (distance_cm <= 17.5) { fillPercent = 75; matrix.loadFrame(Trash_can_75); }
   else if (distance_cm <= 26.25) { fillPercent = 62; matrix.loadFrame(Trash_can_62_5); }
   else if (distance_cm <= 35.0) { fillPercent = 50; matrix.loadFrame(Trash_can_50); }
@@ -267,6 +267,13 @@ void setup() {
   
   server.begin(); // Start listening for Python commands
   Serial.println("Server started. Listening for commands...");
+
+  // First percent of the bin
+  Serial.println("Taking initial reading...");
+  float d1 = getFilteredDistance(TRIG_PIN, ECHO_PIN);
+  float d2 = getFilteredDistance(TRIG_PIN2, ECHO_PIN2);
+  correctDistance = compareSensors(d1, d2);
+
 }
 
 // ---------------------------------------------------------------------------
