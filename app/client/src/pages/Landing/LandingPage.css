@@ -31,17 +31,10 @@
     /* Moderate padding */
 }
 
-.logo::before {
-    content: '';
-    display: inline-block;
-    width: 24px;
-    height: 24px;
-    background: var(--primary-color);
-    border-radius: 6px;
-}
+/* .logo::before removed */
 
 .download-btn {
-    background: var(--text-color);
+    background: var(--primary-color);
     color: #fff;
     padding: 0.7rem 1.5rem;
     /* Bigger button */
@@ -51,6 +44,7 @@
     border: none;
     cursor: pointer;
     font-weight: 600;
+    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
 }
 
 /* HERO SECTION */
@@ -109,6 +103,7 @@
     filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.08));
     animation: float 6s ease-in-out infinite;
     margin: 2rem;
+    border-radius: 40px;
     /* Safety margin */
 }
 

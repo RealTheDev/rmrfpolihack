@@ -62,6 +62,7 @@ const LandingPage: React.FC = () => {
         <div className="landing-page">
             <header className="navbar">
                 <div className="logo">
+                    <img src="/smartcanlogo.png" alt="Logo" style={{ height: '32px', width: 'auto' }} />
                     SmartCan
                 </div>
                 <div className="nav-actions">
@@ -83,7 +84,7 @@ const LandingPage: React.FC = () => {
                 </div>
 
                 <div className="hero-image-container">
-                    <img src="/hero-trash-can.png" alt="Smart Trash Can" className="hero-image" />
+                    <img src="/HeroImage.png" alt="Smart Trash Can" className="hero-image" />
                 </div>
             </section>
 
@@ -150,10 +151,6 @@ const LandingPage: React.FC = () => {
                             <div className="stat-box">
                                 <span className="stat-number">{activeUnits}</span>
                                 <span className="stat-desc">Active Units</span>
-                            </div>
-                            <div className="stat-box">
-                                <span className="stat-number">85%</span>
-                                <span className="stat-desc">Collection Eff.</span>
                             </div>
                             <div className="stat-box">
                                 <span className="stat-number">24/7</span>

@@ -48,7 +48,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ bins }) => {
                 // Green: Otherwise (Working and < 80%)
                 let icon = greenIcon;
                 let statusColor = '#047857'; // Green text
-                let statusBg = '#ECFDF5';   // Green bg
 
                 const lastUpdatedDate = new Date(bin.lastUpdated);
                 const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -56,26 +55,55 @@ const MapComponent: React.FC<MapComponentProps> = ({ bins }) => {
                 if (lastUpdatedDate < oneHourAgo) {
                     icon = blackIcon;
                     statusColor = '#1F2937'; // Gray-800
-                    statusBg = '#F3F4F6';    // Gray-100
                 } else if (bin.fillLevel > 80) {
                     icon = redIcon;
                     statusColor = '#B91C1C'; // Red text
-                    statusBg = '#FEF2F2';    // Red bg
                 }
 
                 return (
                     <Marker key={bin.id} position={[bin.lat, bin.lng]} icon={icon}>
                         <Popup>
-                            <div style={{ color: '#333', textAlign: 'center' }}>
+                            <div style={{ color: '#333', textAlign: 'center', minWidth: '120px', padding: '5px' }}>
+
+                                {/* Large Percentage Number */}
                                 <div style={{
-                                    marginTop: '5px',
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    background: statusBg,
+                                    fontSize: '1.3rem',
+                                    fontWeight: '800',
                                     color: statusColor,
-                                    fontWeight: 'bold'
+                                    marginBottom: '4px',
+                                    lineHeight: '1',
+                                    letterSpacing: '-1px'
                                 }}>
-                                    Fill Level: {bin.fillLevel}%
+                                    {bin.fillLevel}%
+                                </div>
+
+                                {/* Horizontal Progress Bar Container */}
+                                <div style={{
+                                    height: '8px',
+                                    width: '100%',
+                                    backgroundColor: '#e5e7eb',
+                                    borderRadius: '999px',
+                                    overflow: 'hidden',
+                                    marginBottom: '6px',
+                                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)'
+                                }}>
+                                    {/* Progress Bar Fill */}
+                                    <div style={{
+                                        height: '100%',
+                                        width: `${Math.min(bin.fillLevel, 100)}%`,
+                                        background: `linear-gradient(90deg, ${statusColor}, ${statusColor}dd)`,
+                                        borderRadius: '999px',
+                                        transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                    }} />
+                                </div>
+
+                                <div style={{
+                                    fontSize: '0.85rem',
+                                    color: '#6b7280',
+                                    fontWeight: '600'
+                                }}>
+                                    Fill Level
                                 </div>
                             </div>
                         </Popup>
